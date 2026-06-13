@@ -27,7 +27,7 @@ Professional Network Assessment Tool for Android Termux
 
 ## Installation Guide (Android Termux)
 
-### Step 1 - Update Packages
+###Step 1 - Update Packages
 
 ```bash
 pkg update -y && pkg upgrade -y
