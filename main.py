@@ -3,72 +3,44 @@ from rich.panel import Panel
 
 from modules.network_tests import run_assessment
 from modules.report import show_report
+from modules.isp_detect import detect_isp
 
 console = Console()
-
-INTERNET_TYPES = {
-    "1": "Fixed Internet",
-    "2": "Mobile Internet"
-}
-
-PROVIDERS = {
-    "1": "MCI / Hamrah Aval",
-    "2": "Irancell",
-    "3": "Rightel",
-    "4": "Shatel",
-    "5": "Asiatech",
-    "6": "Pars Online",
-    "7": "Pishgaman",
-    "8": "Mokhaberat",
-    "9": "HiWEB",
-    "10": "Mobinnet",
-    "11": "Other"
-}
-
-
-def select(title, options):
-    while True:
-        console.print(Panel.fit(title, border_style="cyan"))
-
-        for key, value in options.items():
-            console.print(f"[green]{key}[/green]) {value}")
-
-        choice = input("\nSelect number: ").strip()
-
-        if choice in options:
-            return options[choice]
-
-        console.print("[red]Invalid choice. Try again.[/red]")
 
 
 def main():
     console.print(Panel.fit(
-        "[bold cyan]NetScope-Termux[/bold cyan]\n"
+        "[bold cyan]IR-NetScope-Termux[/bold cyan]\n"
         "One Click Professional Network Assessment",
         border_style="green"
     ))
 
-    internet = select("Step 1 - Select Internet Type", INTERNET_TYPES)
-    provider = select("Step 2 - Select Internet Provider", PROVIDERS)
+    console.print("\n[bold cyan]Detecting ISP and Network Profile...[/bold cyan]\n")
+
+    isp_info = detect_isp()
 
     console.print(Panel.fit(
-        "[green]1[/green]) Professional Network Assessment\n"
-        "[red]0[/red]) Exit",
-        title="Step 3 - Select Test",
-        border_style="green"
+        f"[bold]Public IP:[/bold] {isp_info['ip']}\n"
+        f"[bold]Detected ISP:[/bold] {isp_info['provider']}\n"
+        f"[bold]Raw Provider:[/bold] {isp_info['raw_provider']}\n"
+        f"[bold]ASN:[/bold] {isp_info['asn']}\n"
+        f"[bold]Location:[/bold] {isp_info['city']} / {isp_info['country']}\n"
+        f"[bold]Source:[/bold] {isp_info['source']}",
+        title="AUTO DETECTION",
+        border_style="blue"
     ))
 
-    choice = input("\nSelect number: ").strip()
-
-    if choice == "0":
-        console.print("[red]Exit.[/red]")
-        return
-
-    console.print("\n[bold cyan]Running professional assessment...[/bold cyan]\n")
+    console.print("\n[bold cyan]Starting professional assessment automatically...[/bold cyan]\n")
 
     profile = {
-        "internet": internet,
-        "provider": provider
+        "internet": "Auto Detected",
+        "provider": isp_info["provider"],
+        "raw_provider": isp_info["raw_provider"],
+        "ip": isp_info["ip"],
+        "asn": isp_info["asn"],
+        "country": isp_info["country"],
+        "city": isp_info["city"],
+        "source": isp_info["source"]
     }
 
     results = run_assessment()

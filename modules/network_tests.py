@@ -8,6 +8,17 @@ import dns.resolver
 from modules.scoring import latency_score, jitter_score, grade
 
 
+def clamp(score):
+    return max(0, min(100, int(score)))
+
+
+def avg(*scores):
+    valid = [s for s in scores if isinstance(s, (int, float))]
+    if not valid:
+        return 0
+    return clamp(sum(valid) / len(valid))
+
+
 def fail(name):
     return {
         "test": name,
@@ -33,19 +44,19 @@ def ping_test(target="1.1.1.1"):
         loss = int(loss_match.group(1)) if loss_match else 100
         latency = float(avg_match.group(1)) if avg_match else None
 
-        score = latency_score(latency) - (loss * 3)
-        score = max(0, min(100, score))
+        score = latency_score(latency) - (loss * 2)
+        score = clamp(score)
 
         return {
-            "test": "Ping",
-            "result": "PASS" if loss < 100 else "FAIL",
+            "test": "ICMP Ping",
+            "result": "PASS" if loss < 100 else "BLOCKED",
             "latency": latency,
             "score": score,
             "grade": grade(score)
         }
 
     except Exception:
-        return fail("Ping")
+        return fail("ICMP Ping")
 
 
 def jitter_test(target="1.1.1.1"):
@@ -60,7 +71,13 @@ def jitter_test(target="1.1.1.1"):
         times = [float(x) for x in re.findall(r"time=([\d.]+) ms", r.stdout)]
 
         if len(times) < 2:
-            return fail("Jitter")
+            return {
+                "test": "ICMP Jitter",
+                "result": "UNAVAILABLE",
+                "latency": None,
+                "score": 50,
+                "grade": "D"
+            }
 
         diffs = [abs(times[i] - times[i - 1]) for i in range(1, len(times))]
         jitter = round(sum(diffs) / len(diffs), 2)
@@ -68,7 +85,7 @@ def jitter_test(target="1.1.1.1"):
         score = jitter_score(jitter)
 
         return {
-            "test": "Jitter",
+            "test": "ICMP Jitter",
             "result": "PASS",
             "latency": jitter,
             "score": score,
@@ -76,18 +93,24 @@ def jitter_test(target="1.1.1.1"):
         }
 
     except Exception:
-        return fail("Jitter")
+        return {
+            "test": "ICMP Jitter",
+            "result": "UNAVAILABLE",
+            "latency": None,
+            "score": 50,
+            "grade": "D"
+        }
 
 
 def dns_test(name, server):
     try:
-        resolver = dns.resolver.Resolver()
+        resolver = dns.resolver.Resolver(configure=False)
         resolver.nameservers = [server]
-        resolver.timeout = 3
-        resolver.lifetime = 3
+        resolver.timeout = 4
+        resolver.lifetime = 4
 
         start = time.time()
-        resolver.resolve("example.com", "A")
+        resolver.resolve("google.com", "A")
         latency = round((time.time() - start) * 1000, 2)
 
         score = latency_score(latency)
@@ -128,14 +151,18 @@ def tcp_test(name, host, port):
 def http_test(name, url):
     try:
         start = time.time()
-        r = requests.get(url, timeout=8)
+        r = requests.get(
+            url,
+            timeout=10,
+            headers={"User-Agent": "IR-NetScope-Termux"}
+        )
         latency = round((time.time() - start) * 1000, 2)
 
         score = latency_score(latency)
 
         return {
             "test": name,
-            "result": "PASS" if r.status_code < 400 else "WARN",
+            "result": "PASS" if r.status_code < 500 else "WARN",
             "latency": latency,
             "score": score,
             "grade": grade(score)
@@ -160,7 +187,13 @@ def traceroute_test(target="1.1.1.1"):
         ])
 
         if hops == 0:
-            return fail("Traceroute")
+            return {
+                "test": "Traceroute",
+                "result": "BLOCKED",
+                "latency": None,
+                "score": 50,
+                "grade": "D"
+            }
 
         if hops <= 8:
             score = 100
@@ -180,10 +213,18 @@ def traceroute_test(target="1.1.1.1"):
         }
 
     except Exception:
-        return fail("Traceroute")
+        return {
+            "test": "Traceroute",
+            "result": "UNAVAILABLE",
+            "latency": None,
+            "score": 50,
+            "grade": "D"
+        }
 
 
-def vpn_readiness(name, score, requirement):
+def readiness(name, score):
+    score = clamp(score)
+
     if score >= 80:
         result = "READY"
     elif score >= 60:
@@ -210,12 +251,15 @@ def run_assessment():
     google_dns = dns_test("Google DNS", "8.8.8.8")
     quad9_dns = dns_test("Quad9 DNS", "9.9.9.9")
 
-    cf_http = http_test("Cloudflare", "https://cloudflare.com")
-    github_http = http_test("GitHub", "https://github.com")
+    cf_http = http_test("Cloudflare HTTPS", "https://1.1.1.1")
+    github_http = http_test("GitHub HTTPS", "https://github.com")
+    google_http = http_test("Google HTTPS", "https://google.com")
 
     tcp_443 = tcp_test("TCP 443", "cloudflare.com", 443)
     tcp_80 = tcp_test("TCP 80", "cloudflare.com", 80)
     tcp_53 = tcp_test("DNS TCP 53", "1.1.1.1", 53)
+
+    mqtt_tcp = tcp_test("MQTT TCP 1883", "test.mosquitto.org", 1883)
 
     route = traceroute_test("1.1.1.1")
 
@@ -227,42 +271,84 @@ def run_assessment():
         quad9_dns,
         cf_http,
         github_http,
+        google_http,
         tcp_443,
         tcp_80,
         tcp_53,
+        mqtt_tcp,
     ])
 
-    dns_score = round((cf_dns["score"] + google_dns["score"] + quad9_dns["score"]) / 3)
-    tcp_score = round((tcp_443["score"] + tcp_80["score"]) / 2)
-    base_score = round((ping["score"] + jitter["score"] + dns_score + tcp_score) / 4)
+    dns_score = avg(cf_dns["score"], google_dns["score"], quad9_dns["score"])
+    http_score = avg(cf_http["score"], github_http["score"], google_http["score"])
+    tcp_score = avg(tcp_443["score"], tcp_80["score"], tcp_53["score"])
 
-    wireguard_score = round((base_score + tcp_443["score"] + jitter["score"]) / 3)
-    openvpn_score = round((base_score + tcp_443["score"] + tcp_80["score"]) / 3)
-    warp_score = round((base_score + cf_dns["score"] + tcp_443["score"]) / 3)
-    psiphon_score = round((base_score + tcp_443["score"] + github_http["score"]) / 3)
+    # Important:
+    # ICMP ping may be blocked by mobile operators.
+    # So base score depends mainly on DNS/HTTPS/TCP, not ICMP.
+    base_score = avg(dns_score, http_score, tcp_score)
 
-    v2ray_score = round((base_score + tcp_443["score"] + cf_http["score"]) / 3)
-    xray_score = v2ray_score
-    trojan_score = round((tcp_443["score"] + cf_http["score"]) / 2)
-    shadowsocks_score = round((base_score + tcp_443["score"]) / 2)
+    tls_score = avg(tcp_443["score"], cf_http["score"], github_http["score"])
+    websocket_score = avg(tcp_443["score"], github_http["score"], google_http["score"])
+    polling_score = avg(tcp_443["score"], tcp_80["score"], http_score)
+    tunnel_score = avg(base_score, tcp_443["score"], tls_score)
+    udp_like_score = avg(base_score, jitter["score"], tcp_443["score"]) - 5
+    legacy_vpn_score = avg(base_score, tcp_score) - 10
+    mqtt_score = avg(mqtt_tcp["score"], tcp_443["score"], dns_score)
+    grpc_score = avg(tcp_443["score"], tls_score, http_score)
 
-    hysteria_score = round((base_score + jitter["score"]) / 2)
-    tuic_score = round((base_score + jitter["score"]) / 2)
-    singbox_score = round((wireguard_score + v2ray_score + hysteria_score) / 3)
+    web_realtime = [
+        ("WebSocket", websocket_score),
+        ("WSS", tls_score),
+        ("WebTransport", avg(tls_score, jitter["score"], base_score)),
+        ("SSE", polling_score),
+        ("Long Polling", polling_score),
+        ("BOSH", polling_score - 5),
+        ("WStunnel", tunnel_score),
+        ("WebTunnel", tunnel_score),
+        ("MQTT", mqtt_score),
+        ("gRPC Streaming", grpc_score),
+        ("WSMux", websocket_score - 3),
+        ("WSSMux", tls_score - 3),
+        ("HELIUM-WebSocket", websocket_score - 5),
+    ]
 
-    results.extend([
-        vpn_readiness("WireGuard", wireguard_score, "UDP/Tunnel readiness"),
-        vpn_readiness("OpenVPN", openvpn_score, "TCP/UDP readiness"),
-        vpn_readiness("WARP", warp_score, "Cloudflare readiness"),
-        vpn_readiness("Psiphon", psiphon_score, "Fallback readiness"),
-        vpn_readiness("V2Ray", v2ray_score, "TLS/TCP readiness"),
-        vpn_readiness("Xray", xray_score, "TLS/TCP readiness"),
-        vpn_readiness("Trojan", trojan_score, "TLS 443 readiness"),
-        vpn_readiness("Shadowsocks", shadowsocks_score, "Proxy readiness"),
-        vpn_readiness("Hysteria", hysteria_score, "UDP stability readiness"),
-        vpn_readiness("TUIC", tuic_score, "UDP/QUIC readiness"),
-        vpn_readiness("Sing-box", singbox_score, "Multi-protocol readiness"),
-        route
-    ])
+    vpn_stack = [
+        ("PPTP", legacy_vpn_score - 15),
+        ("L2TP", legacy_vpn_score - 8),
+        ("L2TP/IPsec", avg(legacy_vpn_score, udp_like_score) - 6),
+        ("SSTP", tls_score),
+        ("IKEv1", udp_like_score - 8),
+        ("IKEv2", udp_like_score),
+        ("IKEv2/IPsec", avg(udp_like_score, dns_score)),
+        ("IPsec ESP/AH", udp_like_score - 10),
+        ("OpenVPN UDP", udp_like_score),
+        ("OpenVPN TCP", tls_score),
+        ("WireGuard", avg(base_score, jitter["score"], tcp_443["score"])),
+        ("SoftEther", avg(tls_score, tcp_score, http_score)),
+        ("Shadowsocks", avg(base_score, tcp_443["score"])),
+        ("SOCKS5", avg(tcp_score, dns_score)),
+        ("V2Ray VMess", avg(tls_score, websocket_score, dns_score)),
+        ("Trojan", tls_score),
+        ("Outline", avg(base_score, tcp_443["score"], dns_score)),
+        ("ZeroTier", udp_like_score - 5),
+        ("Tinc", avg(base_score, tcp_score) - 5),
+        ("OpenConnect AnyConnect", tls_score),
+        ("SSTap", avg(tcp_score, dns_score)),
+        ("WireGuard over TCP", avg(tls_score, base_score)),
+        ("NordLynx", avg(base_score, jitter["score"], tcp_443["score"])),
+        ("Lightway ExpressVPN", avg(udp_like_score, tls_score)),
+        ("Hydra Hotspot Shield", avg(udp_like_score, tls_score) - 5),
+        ("Catapult HideMyAss", avg(udp_like_score, tls_score) - 5),
+        ("Chameleon VyprVPN", avg(tls_score, websocket_score)),
+        ("Mimic Norton", avg(tls_score, websocket_score)),
+    ]
+
+    for name, score in web_realtime:
+        results.append(readiness(name, score))
+
+    for name, score in vpn_stack:
+        results.append(readiness(name, score))
+
+    results.append(route)
 
     return results
