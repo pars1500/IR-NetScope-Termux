@@ -8,6 +8,14 @@ IR-NetScope-Termux
 
 Professional Network Assessment Tool for Android Termux
 
+Screenshot
+
+"NetScope-Termux" (screenshots/report.jpg)
+
+"Network" (https://img.shields.io/badge/Network-Diagnostics-red)
+
+Professional Network Assessment Tool for Android Termux
+
 ---
 
 Features
