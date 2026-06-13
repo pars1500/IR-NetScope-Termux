@@ -25,47 +25,75 @@ Professional Network Assessment Tool for Android Termux
 
 
 
-## Installation Guide (Android Termux)
+## Quick Install
 
-###Step 1 - Update Packages
+Copy and run this command in Termux:
+
+```bash
+cd ~ && rm -rf IR-NetScope-Termux && \
+pkg update -y && pkg upgrade -y && \
+pkg install git python traceroute inetutils -y && \
+termux-setup-storage && \
+git clone https://github.com/pars1500/IR-NetScope-Termux.git && \
+cd IR-NetScope-Termux && \
+pip install -r requirements.txt && \
+python main.py
+```
+
+## Step-by-Step Installation
+
+### Step 1 - Update Termux
 
 ```bash
 pkg update -y && pkg upgrade -y
 ```
 
-###Step 2 - Grant Storage Permission
+### Step 2 - Grant Storage Permission
+
 ```bash
 termux-setup-storage
 ```
 
-###Step 3 - Install Requirements
+Tap **Allow** when Android asks for storage permission.
+
+### Step 3 - Install Required Packages
+
 ```bash
 pkg install git python traceroute inetutils -y
 ```
 
-###Step 4 - Clone Repository
+### Step 4 - Clone Repository
+
 ```bash
 git clone https://github.com/pars1500/IR-NetScope-Termux.git
 ```
-###Step 5 - Enter Project Directory
+
+### Step 5 - Enter Project Directory
+
 ```bash
 cd IR-NetScope-Termux
 ```
-###Step 6 - Install Python Dependencies
+
+### Step 6 - Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
-###Step 7 - Run Application
+
+### Step 7 - Run Application
 
 ```bash
 python main.py
 ```
-###Updateh
+
+## Update
+
 ```bash
-cd IR-NetScope-Termux && git pull
+cd ~/IR-NetScope-Termux && git pull
 ```
-###Remove
+
+## Remove
+
 ```bash
 rm -rf ~/IR-NetScope-Termux
 ```
