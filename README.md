@@ -23,13 +23,12 @@ Professional Network Assessment Tool for Android Termux
 ![VPN Protocol Report](screenshots/report-vpn.jpg)
 
 
-
-
 ## Quick Install
 
 Copy and run this command in Termux:
 
 ```bash
+cd ~ && rm -rf IR-NetScope-Termux && \
 pkg update -y && pkg upgrade -y && \
 pkg install git python traceroute inetutils -y && \
 termux-setup-storage && \
@@ -96,3 +95,4 @@ cd ~/IR-NetScope-Termux && git pull
 ```bash
 rm -rf ~/IR-NetScope-Termux
 ```
+
