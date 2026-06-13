@@ -30,7 +30,6 @@ Professional Network Assessment Tool for Android Termux
 Copy and run this command in Termux:
 
 ```bash
-cd ~ && rm -rf IR-NetScope-Termux && \
 pkg update -y && pkg upgrade -y && \
 pkg install git python traceroute inetutils -y && \
 termux-setup-storage && \
