@@ -8,6 +8,16 @@
 
 Professional Network Assessment Tool for Android Termux
 
-## Screenshot
+## Screenshots
 
-![NetScope-Termux](screenshots/report.jpg)
+### Auto Detection
+
+![Auto Detection](screenshots/auto-detection.jpg)
+
+### Core Network Report
+
+![Core Network Report](screenshots/report-core.jpg)
+
+### VPN & Protocol Readiness
+
+![VPN Protocol Report](screenshots/report-vpn.jpg)
