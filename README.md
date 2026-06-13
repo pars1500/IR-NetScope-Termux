@@ -21,3 +21,50 @@ Professional Network Assessment Tool for Android Termux
 ### VPN & Protocol Readiness
 
 ![VPN Protocol Report](screenshots/report-vpn.jpg)
+
+
+
+
+## Installation Guide (Android Termux)
+
+### Step 1 - Update Packages
+
+```bash
+pkg update -y && pkg upgrade -y
+
+
+###Step 2 - Grant Storage Permission
+
+termux-setup-storage
+
+
+###Step 3 - Install Requirements
+
+pkg install git python traceroute inetutils -y
+
+
+###Step 4 - Clone Repository
+
+git clone https://github.com/pars1500/IR-NetScope-Termux.git
+
+###Step 5 - Enter Project Directory
+
+cd IR-NetScope-Termux
+
+###Step 6 - Install Python Dependencies
+
+
+pip install -r requirements.txt
+
+###Step 7 - Run Application
+
+
+python main.py
+
+###Updateh
+
+cd IR-NetScope-Termux && git pull
+
+###Remove
+
+rm -rf ~/IR-NetScope-Termux
