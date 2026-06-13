@@ -25,18 +25,32 @@ Professional Network Assessment Tool for Android Termux
 
 ## Quick Install
 
-Copy and run this command in Termux:
+Copy and run:
+
+First Time Setup
+
+Grant storage access if you want to save log files:
 
 ```bash
-cd ~ && rm -rf IR-NetScope-Termux && \
+termux-setup-storage
+```
+Tap Allow when Android asks for permission.
+
+```bash
 pkg update -y && pkg upgrade -y && \
 pkg install git python traceroute inetutils -y && \
-termux-setup-storage && \
 git clone https://github.com/pars1500/IR-NetScope-Termux.git && \
 cd IR-NetScope-Termux && \
 pip install -r requirements.txt && \
 python main.py
 ```
+
+
+
+
+
+
+
 
 ## Step-by-Step Installation
 
